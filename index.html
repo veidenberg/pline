@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Pline</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <!-- <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script> -->
+    <script type="text/javascript" src="https://knockoutjs.com/downloads/knockout-3.5.1.debug.js"></script>
+    <script type="text/javascript" src="pline.js"></script>
+    <link rel="stylesheet" type="text/css" href="pline.css">
+    <style type="text/css">
+      html, body{
+        padding: 0;
+        margin: 0;
+      }
+      html{
+        height: 100%;
+      }
+      body{
+        min-height: 100%;
+      }
+      .navbar.pline{
+        position: fixed;
+        white-space: nowrap;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        padding: 0;
+        background-color: #eee;
+        background: linear-gradient(#fff, #eee);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        border-bottom: 1px solid #ddd;
+        z-index: 20;
+        display: flex;
+        justify-content: space-between;
+      }
+      .navbar > div{
+        display: inline-block;
+        height: 100%;
+        box-sizing: border-box;
+        vertical-align: top;
+        padding: 5px;
+        width: 33%;
+      }
+      .navbar > .left{
+        text-align: left;
+        min-width: 375px;
+      }
+      .navbar > .center{
+        text-align: center;
+      }
+      .navbar > .right{
+        text-align: right;
+      }
+      .navbar .pl-button{
+        margin: 0;
+      }
+      .navbar .pl-button.menu{
+        margin-left: 50px;
+      }
+      .navbar .pl-button.plmenu{
+        margin-left: 5px;
+        display: none;
+      }
+      .navbar .pl-button.status{
+        position: absolute;
+        left: 310px;
+        display: none;
+      }
+      .navbar .pl-button.status.visible{
+        display: inline-block;
+      }
+      .message{
+        display: inline-block;
+        font-size: 16px;
+        color: #444;
+        font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
+      }
+      .message, .container, .tasks{
+        transition: opacity 0.3s linear, transform 0.5s ease-out, visibility 0.5s ease-out;
+      }
+      .message.away{
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      .navbar .title{
+        display: inline-block;
+        margin: 0 auto;
+        font-size: 22px;
+      }
+      .logo{
+        margin-right: 10px;
+      }
+      .logo img{
+        height: 100%;
+        transition: transform 0.2s;
+      }
+      .logo:hover img{
+        transform: scale(1.5);
+      }
+      .tasks{
+        position: fixed;
+        visibility: visible;
+        top: 45px;
+        left: 205px;
+        width: 250px;
+        max-height: 100%;
+        border-radius: 0 0 5px 5px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        padding: 5px 10px 0 10px;
+        background-color: #f9f9f9;
+        z-index: 2;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .tasks.away{
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-100px);
+      }
+      .tasks .title{
+        font-size: 18px;
+      }
+      .tasks .item{
+        padding: 5px;
+        border-radius: 3px;
+        position: relative;
+      }
+      .tasks .item.step{
+        margin-left: 20px;
+      }
+      .tasks .item:nth-child(even){
+        background-color: #fcfcfc;
+      }
+      .tasks .pl-button.pl-small.pl-square{
+        position: absolute;
+        right: 8px;
+        top: 30px;
+        margin: 0;
+      }
+      .tasks .hide{
+        position: relative;
+        padding: 5px;
+        cursor: pointer;
+      }
+      .tasks .hide::after{
+        content: '';
+        display: block;
+        height: 0;
+        width: 50px;
+        border: 1px solid #369;
+        border-radius: 3px;
+        margin: 0 auto;
+      }
+      .tasks .hide:hover::after{
+        border-color: orange;
+      }
+      .tasks .log{
+        display: inline-block;
+        max-height: 1rem;
+        overflow: hidden;
+        vertical-align: top;
+        cursor: pointer;
+      }
+      .tasks .log::before{
+        content: '... ';
+      }
+      .tasks .log.full{
+        color: black;
+        max-height: inherit;
+      }
+      .page{
+        min-height: 400px;
+        padding: 80px 20px 20px 20px;
+      }
+      .container{
+        margin: 0 auto;
+        min-width: 400px;
+        max-width: 500px;
+      }
+      .container.away{
+        opacity: 0;
+        transform: translateY(-100px);
+      }
+      .pline{
+        border-radius: 4px;
+        box-shadow: 0 0 1px rgba(0,0,0,0.2), 0 10px 30px rgba(0,0,0,0.3);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- top menubar -->
+    <div class="navbar pline">
+      <div class="left">
+        <a class="pl-button pl-square menu" title="Show plugins" onclick="toolsMenu(this)">Tools</a>
+        <a class="pl-button pl-square plmenu" title="Show pipelines" onclick="plMenu(this)">Pipelines</a>
+        <span class="message away" data-bind="text: messages()[0], css:{ away: !messages().length }"></span>
+        <a class="pl-button pl-square status" data-bind="css: { visible: jobs().length }" onclick="toggleTasks()">Tasks</a>
+      </div>
+      <div class="center">
+        <span class="title" data-bind="text: Pline.title"></span>
+      </div>
+      <div class="right">
+        <a class="logo" href="http://wasabiapp.org/pline" title="Visit Pline homepage" target="_blank">
+          <img src="pline_logo.png">
+        </a>
+      </div>
+    </div>
+    <div class="page">
+      <!-- background tasks panel -->
+      <div class="pline tasks away">
+          <div class="pl-insidediv" data-bind="foreach: jobs">
+            <div class="item" data-bind="visible: status() != 'Waiting', css:{ step: isChild }">
+              <span class="pl-note">Name:</span> <span class="pl-label" data-bind="text: data().name, attr:{ title: 'Directory: '+id }"></span><br>
+              <span class="pl-note">Status:</span> <span class="pl-label" data-bind="text: status, attr:{ title: timestamp }"></span><br>
+              <span class="pl-note">Program:</span> <span class="pl-label" data-bind="text:data().program, attr:{ title: 'Parameters: '+data().parameters }"></span>
+                <a class="pl-button pl-small pl-square" data-bind="visible: isRunning, click: stop" title="Stop the task">Stop</a>
+                <a class="pl-button pl-small pl-square" data-bind="visible: isStopped, click: restart" title="Restart the task">Restart</a>
+                <a class="pl-button pl-small pl-square" data-bind="visible: !(isChild() || isRunning() || isStopped()), attr:{ href: '?data='+id }" title="Download the input/output files">Download</a>
+              <br>
+              <span data-bind="if: data().step">
+                <span class="pl-note">Pipeline:</span> step <span data-bind="text: data().step"></span><br>
+              </span>
+              <span data-bind="if: data().log">
+                <span class="pl-note pl-label log" onclick="this.classList.toggle('full')" 
+                  data-bind="attr:{ title: 'Click to expand the log. Last updated on '+msecToDate(data().updated) }, text: data().log"></span>
+              </span>
+            </div>
+          </div>
+          <div class="hide" title="Hide tasks" onclick="toggleTasks()"></div>
+      </div>
+      <!-- Pline interface container -->
+      <div class="container away"></div>
+    </div>
+
+    <script type="text/javascript">
+      //create pop-up menu for imported plugins
+      var toolsMenu = function(btn){
+        var menu = [];
+        $.each(Pline.plugins, function(id, plugin){
+          if(plugin.duplicate) return true;
+          menu.push({
+            text: '⚙ '+plugin.title,
+            click: drawInterface.bind(plugin, false),
+            title: 'Open the interface'
+          });
+        });
+        Pline.makeMenu(btn, menu, 'top');
+      }
+
+      //imported pipelines menu
+      var plMenu = function(btn){
+        var menu = [];
+        $.each(model.pipelines, function(i, json){
+          menu.push({
+            text: '⤠ '+json.name,
+            click: function(){
+              drawInterface(json);
+            },
+            title: 'Open the pipeline'
+          });
+        });
+        Pline.makeMenu(btn, menu, 'top');
+      }
+
+      //show/hide tasks status interface
+      var toggleTasks = function(){
+        $('.pl-button.status').toggleClass('active');
+        $('.tasks').toggleClass('away');
+      }
+
+      //convert datestamps to  dates
+      var msecToDate = function(msec){
+        if(!msec || isNaN(msec)) return 'Never';
+        var t = new Date(parseInt(msec)*1000);
+        return ('0' + t.getDate()).slice(-2) + '.' +
+        ('0' + (t.getMonth()+1)).slice(-2) + '.' +
+        t.getFullYear().toString().substr(2)+ ' at ' +
+        t.getHours() + ':' + ('0' + t.getMinutes()).slice(-2);
+      }
+
+      //hide->draw->reveal plugin or pipeline interface
+      var drawInterface = function(json){
+        var plugin = this; //plugin instance
+        var cont = $('.container');
+        setTimeout(function(){
+          Pline.clearPipeline();
+          if(json) Pline.openPipeline(json);
+          else plugin.draw();
+          cont.removeClass('away');
+        }, cont.hasClass('away')? 0 : 500);
+        cont.addClass('away');
+        if(!$('.tasks').hasClass('away')) toggleTasks();
+      }
+
+      //datamodel for each background task state
+      var jobModel = function(jobid){
+        var self = this;
+        self.id = jobid;
+        //task status
+        self.data = ko.observable({}); //updated from the server
+        self.statusnr = ko.pureComputed( function(){
+          var d = self.data();
+          return 'status' in d? d.status : 'Waiting';
+        });
+        self.statusnr.subscribe( function(st){
+          if(st === 0){ //job completed
+            var step = (self.data().step || '1/1').split('/');
+            if(step[0] == step[1]){ //last/only task in pipeline
+              model.messages.push('✅Task done');
+            }
+            var nstep = self.data().nextstep||'';
+            if(nstep) model.addJob(nstep, 'isChild'); //sync the next analysis step
+          }
+        });
+        self.nr_txt = { 1: 'Queued', 2: 'Running', 0: 'Done'};
+        self.status = ko.pureComputed( function(){
+          st = self.statusnr();
+          if(!isNaN(st)){ //int => program return code 
+            if(self.nr_txt[st]){ return self.nr_txt[st]; } 
+            else if(st<0){ return 'Failed'; }
+          }
+          return st;
+        });
+        self.isRunning = ko.pureComputed( function(){ //queued/running
+          var st = self.status();
+          return st === 'Waiting' || st === 'Queued' || st === 'Running';
+        });
+        self.isStopped = ko.pureComputed( function(){ //stopped by user
+          return self.status().indexOf('Terminated') === 0;
+        });
+        self.isChild = ko.pureComputed( function(){ //pipeline step 2-..
+          var step = self.data().step || '1/1';
+          return step.split('/')[0] > 1;
+        });
+        self.timestamp = ko.pureComputed( function(){
+          var d = self.data();
+          var fin = d.completed? ', finished on '+msecToDate(d.completed) : '';
+          return 'Task started on '+msecToDate(d.created)+fin;
+        });
+        //task actions (server requests)
+        self.stop = function(btn){
+          $.get('?terminate='+self.id)
+          .done(function(){
+            model.messages.push('⚠️Task stopped');
+          });
+        };
+        self.restart = function(btn){
+          $.get('?restart='+self.id)
+          .done(function(){
+            model.messages.push('⚠️Task resumed');
+            model.getStatus(self.id);
+          });
+        };
+        self.download = function(btn){
+          $.get('?data='+self.id); //init zip file download
+        };
+      }
+
+      //datamodel for the webpage state
+      var koModel = function(){
+        var self = this;
+        //notifications
+        self.messages = ko.observableArray();
+        self.messages.subscribe( function(changes){
+          changes.forEach( function(c){
+            if(c.status == 'added'){ //throttle incoming messages
+              setTimeout( function(){
+                if(self.messages().length === 1){ //last message: hide before removing
+                  $('.message').addClass('away');
+                  setTimeout(function(){ self.messages.shift(); }, 300);
+                } else {
+                  self.messages.shift(); //remove shown message
+                }
+              }, (c.index+1)*2000 );
+            }
+          });
+        }, self, "arrayChange");
+        //list of active tasks (jobModel() instances)
+        self.jobs = ko.observableArray().extend({ rateLimit: 100 });
+        //add a new job to the list
+        self.addJob = function(md, isChild){ 
+          if(typeof(md) == 'string') md = {id: md};
+          else if(typeof(md) != 'object' || !md.id) return;
+          self.jobs.push(new jobModel(md.id));
+          if(!isChild) self.messages.push('New task 👉');
+          return self.jobs().length-1;
+        };
+        //list of running tasks
+        self.runningjobs = ko.pureComputed(function(){
+          var jobs = self.jobs();
+          var ids = [];
+          $.each(jobs, function(i, job){
+            if(job.isRunning()) ids.push(job.id);
+          });
+          return ids.join(',');
+        }).extend({ rateLimit: 30 });
+        //set up server syncing loop
+        self.jobtimer = '';
+        self.runningjobs.subscribe(function(running){
+          clearInterval(self.jobtimer);
+          if(running){ //new running jobs => (re)start sync loop
+            self.jobtimer = setInterval(self.getStatus, 1000);
+          }
+        });
+        //sync the status of all running tasks
+        self.getStatus = function(jobid){
+          $.get('?status='+(jobid||self.runningjobs()))
+          .done(function(data){ //new status data from the server
+            data = JSON.parse(data);
+            $.each(data, function(id, jobdata){
+              var jobnr = Pline.plugin.prototype.indexOfObj(self.jobs(), 'id', id);
+              if(jobnr == -1) return;
+              self.jobs()[jobnr].data(jobdata); //update job status
+            });
+          });
+        };
+        //list of preinstalled pipelines
+        self.pipelines = []; //[{name:str, inputs:{}}, ...]
+      }
+
+      var model = new koModel();
+
+      //sync with server on pageload
+      $(function(){
+        //link html to the datamodel
+        ko.applyBindings(model);
+
+        //check Pline server status
+        $.get('?checkserver').done(function(status){
+          if(status.email) Pline.settings.sendmail = true; //can send email
+          if(status.datadir) model.datadir = status.datadir;
+          if(status.jobs && $.isArray(status.jobs)){ //has running tasks
+            $.each(status.jobs, function(i, id){
+              model.addJob(id); //add to task list => sync
+            })
+          }
+        });
+
+        //set Pline hooks and settings
+        Pline.extend({
+          jobSent: function(newJob){ //get submitted task ID => check status
+            model.addJob(JSON.parse(newJob)); //newJob = {'id':'job_dir'}
+            setTimeout(function(){ //hide interface
+              $('.container').addClass('away');
+              toggleTasks();
+              setTimeout(function(){ //reset
+                $('.container').empty();
+                Pline.clearPipeline();
+              }, 500);
+            }, 1000);
+          }
+        });
+        Pline.settings.UIcontainer = '.container'; //default interface location
+        Pline.config.includeFiles = true; //include input files when storing pipelines
+
+        //get available Pline plugins and pipelines
+        $.get('?plugins').done(function(data){
+          data = JSON.parse(data);
+          if(data.plugins && $.isArray(data.plugins) && data.plugins.length){
+            $.each(data.plugins, function(i, jsonpath){ //import plugin
+              Pline.addPlugin('?plugin='+jsonpath, jsonpath);
+            });
+            model.messages.push('👈 Pline plugins ready');
+          } else {
+            model.messages.push('⚠️ No plugins found');
+          }
+          //get preinstalled pipelines
+          if(data.pipelines && $.isArray(data.pipelines) && data.pipelines.length){
+            $.each(data.pipelines, function(i, jsonpath){
+              $.get('?plugin='+jsonpath).done(function(data){
+                //add pipeline source (for input file downloads)
+                data.URL = '?plugin='+jsonpath.substring(0, jsonpath.lastIndexOf('/')+1);
+                model.pipelines.push(data); //add to the pipelines menu
+              });
+            });
+            setTimeout( function(){ //draw the first imported pipeline
+              Pline.openPipeline(model.pipelines[0]);
+              if(!Pline.config.errors().length){
+                $('.pl-button.plmenu').show();
+                $('.container').removeClass('away');
+                model.messages.push('👈 Pipeline imported');
+              } else {
+                model.messages.push('⚠️ Pipeline import failed');
+              }
+            }, 2300);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

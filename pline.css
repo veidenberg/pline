@@ -1,0 +1,497 @@
+/* CSS styles for Pline interfaces */
+
+.pline{
+	font: 14px arial, sans-serif;
+	text-shadow: 0 1px 0 white;
+	background-color: #eee;
+	border-radius: 3px;
+	color: black;
+	padding: 10px;
+}
+
+.pline .pl-header a{
+	color: #369;
+	text-decoration: none;
+}
+
+.pline .pl-header a:hover{
+	color: orange;
+}
+
+.pline hr{
+	color: white;
+	box-shadow: 0 2px 6px #ddd;
+	margin: 5px 0;
+	height: 0;
+	border: 0;
+	border-top: 2px groove white;
+}
+ 
+.pl-plugin div.pl-error{
+	border: 1px solid #d33;
+	border-radius: 3px;
+	padding: 3px;
+	margin: 3px 0;
+}
+
+p.pl-error, .pl-errormsg{
+	background: #d33;
+	border: 1px solid #800;
+	border-radius: 3px;
+	color: white;
+	padding: 3px;
+	margin: 3px;
+	text-align: center;
+	text-shadow: none;
+}
+
+.pl-plugin > .pl-nr{
+	background: #bbb;
+	border-radius: 10px;
+	box-shadow: 0 1px 0 white, 0 1px 3px #333 inset;
+	color: white;
+	font-weight: normal;
+	padding: 2px 6px;
+	text-shadow: none;
+}
+
+/* container elements */
+.pl-insidediv{
+	position: relative;
+	padding: 7px 5px 5px;
+	margin: 5px 0 0;
+	overflow: hidden;
+	border: 1px solid white;
+	border-radius: 3px;
+	background-color: rgba(0,0,0,0.02);
+	box-shadow: 0 2px 3px -1px rgba(0, 0, 0, 0.4) inset, 0 -4px 3px -4px rgba(0, 0, 0, 0.4) inset;
+}
+
+.pl-pluginstep{
+	background-color: rgba(255,255,255,0.5);
+	padding: 3px 3px 6px;
+	margin-bottom: 3px;
+	border:1px solid #ddd;
+	border-radius: 3px;
+}
+.pl-pluginstep > .pl-expandtitle{
+	font-weight: bold;
+}
+.pl-pluginstep > .pl-expandtitle + .pl-button{ margin: 0; }
+.pl-pluginstep > .pl-insidediv{
+	margin-top: 7px;
+}
+
+.pl-pluginstep.pl-pipe{
+	margin-top: -4px;
+	border-top: 1px dashed #ccc;
+}
+.pl-pluginstep.pl-pipe .pl-jobname{
+	display: none;
+}
+
+.pl-expandtitle{
+	margin: 3px 3px 0;
+}
+.pl-rotateable{
+	display: inline-block;
+	color: #333;
+	cursor: default;
+	text-shadow: none;
+	font-size: 12px;
+	vertical-align: 1px;
+	-webkit-transition: all .2s;
+	transition: all .2s;
+}
+.pl-rotateddown{
+	-webkit-transform: rotate(90deg);
+	transform: rotate(90deg);
+}
+span.pl-note{
+	display: inline-block;
+	color: #666;
+	cursor: default;
+}
+
+.pl-sectiontitle{
+	position: relative;
+	height: 1px;
+	border-top: 2px groove white;
+	text-align: center;
+	margin: 10px 0;
+}
+.pl-sectiontitle > span{
+	position: relative;
+	top: -10px;
+	background-color: #f0f0f0;
+	padding: 0 10px;
+}
+
+.pl-inline, .pl-inlinegroup > div{
+	display: inline-block;
+}
+
+.pl-namelabel{
+	position: absolute;
+	margin: -17px 0 0 -7px;
+	border-radius: 3px;
+	color: white;
+	background-color: #aaa;
+	padding: 1px 6px;
+	text-shadow: none;
+	font-size: 14px;
+	font-weight: normal;
+}
+
+/* input elements */
+.pline input, .pline textarea{
+	font: 16px arial, sans-serif;
+	border: 1px solid #888;
+	margin: 0 5px 5px 0;
+	border-radius: 3px;
+	background: white linear-gradient(#e3e3e3,#fafafa,#fff);
+	box-shadow: 0 1px 0 white, 0 0 0 1px white inset;
+	-webkit-transition: all .4s;
+	transition: all .4s;
+}
+.pline input:hover, .pline input:focus, .pline textarea:hover, .pline textarea:focus{
+	border-color: #333;
+	background-color: white;
+}
+.pline select{ margin: 3px 5px 2px; }
+
+
+.pl-inputdesc{
+	opacity:0; 
+	transition: opacity 0.2s;
+	color: #aaa;
+}
+input:focus+.pl-inputdesc{ opacity: 1; }
+
+input.pl-faded{
+	background: rgba(255,255,255,0.5);
+	border-color: transparent;
+	box-shadow: none;
+	width: 250px;
+}
+
+.pline input[type="text"]{
+	margin: 2px 5px 5px 5px;
+	max-width: 300px;
+}
+
+.pl-form input[type="checkbox"]{
+	width: 16px;
+	height: 16px;
+	margin: 0 3px 5px 5px;
+	vertical-align: -2px;
+}
+.pl-form input[type="checkbox"] + span{
+	margin-right: 5px;
+}
+
+div.pl-numinput input[type="checkbox"]{
+	margin-left: 0;
+}
+input.pl-num{
+  padding-left: 0;
+  text-align: center;
+  width: 40px;
+}
+input.pl-num.pl-short{
+  width: 25px;
+}
+input.pl-num.pl-long{
+  width: 60px;
+}
+
+input.pl-nogap{ margin-right: 0; }
+
+span.pl-label{
+	cursor: default;
+	border-bottom: 1px dotted #bbb;
+	display: inline-block;
+}
+span.pl-label:hover{
+	color: orange;
+	border-bottom-color: transparent;
+}
+
+span.pl-icon{
+	margin-right: 5px;
+	font-weight: bold;
+}
+span.pl-action{
+	color: #369;
+	cursor: pointer;
+}
+.pl-errormsg span.pl-action{ color: white; }
+span.pl-action.pl-close{ float: right; }
+span.pl-action:hover{ color: orange; }
+span.pl-action.pl-info{
+	display: inline-block;
+	cursor: default;
+}
+
+.pl-filediv{
+	margin-top: 5px;
+}
+.pl-filediv .pl-action.pl-icon{
+	color: red;
+}
+.pl-filediv .pl-action.pl-icon:hover{
+	color: orange;
+}
+
+.pl-filedrag{
+	display: inline-block;
+	margin: 5px;
+	border: 2px dashed #ccc;
+	color: #aaa;
+	font-size: 18px;
+	font-weight: bold;
+	border-radius: 5px;
+	padding: 5px;
+	text-align: center;
+	cursor: default;
+}
+.pline .pl-filedrag .pl-button.pl-small{ margin: 0 0 0 8px; }
+
+.pl-dragover{
+	background-color: #eee;
+	text-shadow: 0 1px 1px white;
+	border-color: orange;
+}
+
+.pl-file{
+	padding: 5px 0;
+}
+.pl-file > .pl-icon{
+	margin-left: 5px;
+}
+.pl-filename{ font-weight: bold; }
+
+/* buttons */
+.pline .pl-button{
+	outline: none;
+	cursor: pointer;
+	display: inline-block;
+	white-space: nowrap;
+	background-color: #d0d0d0;
+	background: -webkit-linear-gradient(#f9f9f9, #d0d0d0);
+	background: linear-gradient(#f9f9f9, #d0d0d0);
+	border: 1px solid #888;
+	padding: 6px 20px;
+	margin: 8px;
+	font-weight: bold;
+	font-size: 16px;
+	text-decoration: none !important;
+	color: #333;
+	text-shadow: 0 1px 0 rgba(255,255,255,.9);
+	border-radius: 18px;
+	box-shadow: 0 0 1px 1px rgba(255,255,255,.8) inset, 0 1px 0 rgba(255,255,255,.6);
+  -ms-user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+}
+
+.pline a.pl-button:hover, .pline input.pl-button:hover{
+  background-color: #fff;
+  background: -webkit-linear-gradient(#fcfcfc, #dcdcdc);
+  background: linear-gradient(#fcfcfc, #dcdcdc);
+  box-shadow: 0 0 3px #bbb;
+}
+.pline a.pl-button.disabled:hover{ box-shadow: none; }
+.pline a.pl-button:active, .pline a.pl-button.active{
+  background-color: #eee;
+  background: -webkit-linear-gradient(#dadada, #fafafa);
+  background: linear-gradient(#dadada, #fafafa);
+}
+
+a.pl-button span{ display: inline-block; }
+.pline .pl-button.pl-square{
+	border-radius: 3px;
+	padding: 4px 8px;
+}
+.pline .pl-button.pl-round{
+	padding: 3px;
+  border-radius: 100%;
+}
+.pline .pl-button.pl-small{
+	padding: 1px 6px;
+	margin: 0 5px;
+}
+
+.pline .pl-red{ color: red; }
+
+.pl-btndiv{
+	text-align: center;
+	margin-top: 10px;
+}
+.pline .pl-btndiv .pl-button{
+	margin: 5px;
+	border-radius: 3px;
+	padding: 7px 10px;
+	font: inherit;
+	font-weight: bold;
+	width: auto;
+}
+.pline .pl-btndiv .pl-button.pl-submit{
+	margin-left: 20px;
+	color: white;
+	text-shadow: 0 -1px 0 #333;
+	background-color: #D07000;
+	background: linear-gradient(#FFA500, #D07000);
+	box-shadow: 0 1px 2px -1px white inset;
+	border-radius: 5px;
+}
+.pline .pl-btndiv .pl-button.pl-submit:hover{
+	background-color: #FFCC00;
+	background: linear-gradient(#FFCC00, #E29500);
+}
+.pline .pl-btndiv .pl-button:active { top: 0 }
+
+/* pop-up menu */
+.pl-tooltip{
+	position: absolute;
+	background-color: rgba(250,250,250,0.98);
+	border: none;
+	border-radius: 5px;
+	box-shadow: 0 2px 6px -1px rgba(30,30,30,0.6);
+	font: 15px Arial;
+	color: black;
+	padding: 1px;
+	z-index: 70;
+	white-space: nowrap;
+	opacity: 0;
+	-webkit-transition: opacity .2s ease-out, -webkit-transform .2s ease-out;
+  transition: opacity .2s ease-out, transform .2s ease-out;
+}
+
+.pl-tooltip.pl-opaque{
+	opacity: 1;
+	-webkit-transform: translate(0,0);
+	transform: translate(0,0);
+}
+
+.pl-tooltip .pl-arrow{
+	position: absolute;
+	display: none;
+	width: 12px;
+	height: 12px;
+	-webkit-transform: rotate(45deg) skewX(-10deg) skewY(-10deg);
+  transform: rotate(45deg) skewX(-10deg) skewY(-10deg);
+	box-shadow: -2px 2px 3px -2px #666;
+	background-color: rgba(250,250,250,0.98);
+	border: none;
+	box-shadow: -2px 2px 3px -2px rgba(30,30,30,0.5);
+}
+	
+.pl-tooltip.pl-leftarrow{
+	-webkit-transform: translateX(10px);
+	transform: translateX(10px);
+}
+.pl-tooltip.leftarrow > .pl-arrow{
+	display: block;
+	left: -9px;
+	top: 4px;
+}
+.pl-tooltip.pl-toparrow{
+	-webkit-transform: translateY(10px);
+	transform: translateY(10px);
+}
+.pl-tooltip.pl-toparrow > .pl-arrow{
+	display: block;
+	left: 50%;
+	margin-left: -7px;
+	top: -6px;
+	box-shadow: -2px -2px 3px -2px rgba(30,30,30,0.6);
+}
+.pl-tooltip.pl-bottomarrow{
+	-webkit-transform: translateY(-10px);
+	transform: translateY(-10px);
+}
+.pl-tooltip.pl-bottomarrow > .pl-arrow{
+	display: block;
+	left: 50%;
+	margin-left: -7px;
+	top: auto;
+	bottom: -6px;
+	box-shadow: 2px 2px 3px -2px rgba(30,30,30,0.6);
+}
+
+.pl-tooltipcontentwrap{
+	position: relative;
+	-webkit-transition: height 0.5s cubic-bezier(0.2,1,0.2,1);
+	transition: height 0.5s cubic-bezier(0.2,1,0.2,1);
+}
+
+.pl-tooltip ul{
+	margin: 0;
+	padding: 0;
+}
+
+.pl-tooltip ul li{
+	list-style-type:none;
+	margin: 0;
+	padding: 2px 5px;
+	cursor: pointer;
+	font-size: 18px;
+}
+.pl-tooltip ul li:hover{
+	text-shadow: 0 1px 3px #333;
+	color: white;                      
+	background: -webkit-linear-gradient(#88b2ff,#3e5dff);
+	background: linear-gradient(#88b2ff,#3e5dff);
+}
+
+.pl-tooltip ul li.pl-inactive{
+	cursor: default;
+	opacity: 0.2;
+}
+.tooltip ul li.inactive:hover{
+	color: #999;
+	text-shadow: none;
+	background: none;
+}
+
+.pl-tooltip ul li hr{
+	margin: 0;
+}
+
+.pl-tooltip ul li:first-child{
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+}
+.pl-tooltip ul li:last-child{
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+/* email input footer */
+.pl-email{
+	margin-top: 10px;
+}
+
+.pl-email > input[type="text"]{
+	width: 150px;
+}
+
+/*config input footer*/
+.pl-config{
+	text-align: center;
+}
+.pl-config > input[type="text"]{
+	width: 150px;
+	margin-left: 5px;
+}
+.pl-config > input.desc{
+	width: 250px;
+}
+.pl-config .pl-button.pl-round{
+	padding: 0px 7px 2px 7px;
+}
+.pl-config.pl-message{
+	color: #666;
+	height: 20px;
+}

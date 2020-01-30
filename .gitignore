@@ -1,0 +1,6 @@
+/docs/
+/plugins/**
+!/plugins/ABOUT.md
+/downloads/
+/analyses/
+.vscode
