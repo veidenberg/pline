@@ -1,12 +1,12 @@
 <!DOCTYPE html>
+<!-- Demo website for Pline interfaces (http://wasabiapp.org/pline) -->
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Pline</title>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
-    <!-- <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script> -->
-    <script type="text/javascript" src="https://knockoutjs.com/downloads/knockout-3.5.1.debug.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script>
     <script type="text/javascript" src="pline.js"></script>
     <link rel="stylesheet" type="text/css" href="pline.css">
     <style type="text/css">
@@ -57,10 +57,10 @@
       .navbar .pl-button{
         margin: 0;
       }
-      .navbar .pl-button.menu{
+      .navbar .pl-button.tmenu{
         margin-left: 50px;
       }
-      .navbar .pl-button.plmenu{
+      .navbar .pl-button.pmenu{
         margin-left: 5px;
         display: none;
       }
@@ -194,8 +194,8 @@
     <!-- top menubar -->
     <div class="navbar pline">
       <div class="left">
-        <a class="pl-button pl-square menu" title="Show plugins" onclick="toolsMenu(this)">Tools</a>
-        <a class="pl-button pl-square plmenu" title="Show pipelines" onclick="plMenu(this)">Pipelines</a>
+        <a class="pl-button pl-square tmenu" title="Show plugins" onclick="toolsMenu(this)">Tools</a>
+        <a class="pl-button pl-square pmenu" title="Show pipelines" onclick="pipesMenu(this)">Pipelines</a>
         <span class="message away" data-bind="text: messages()[0], css:{ away: !messages().length }"></span>
         <a class="pl-button pl-square status" data-bind="css: { visible: jobs().length }" onclick="toggleTasks()">Tasks</a>
       </div>
@@ -251,7 +251,7 @@
       }
 
       //imported pipelines menu
-      var plMenu = function(btn){
+      var pipesMenu = function(btn){
         var menu = [];
         $.each(model.pipelines, function(i, json){
           menu.push({
@@ -344,13 +344,13 @@
         self.stop = function(btn){
           $.get('?terminate='+self.id)
           .done(function(){
-            model.messages.push('⚠️Task stopped');
+            model.messages.push('ℹ️Task stopped');
           });
         };
         self.restart = function(btn){
           $.get('?restart='+self.id)
           .done(function(){
-            model.messages.push('⚠️Task resumed');
+            model.messages.push('ℹ️Task resumed');
             model.getStatus(self.id);
           });
         };
@@ -454,37 +454,50 @@
           }
         });
         Pline.settings.UIcontainer = '.container'; //default interface location
-        Pline.config.includeFiles = true; //include input files when storing pipelines
+        //Pline.config.includeFiles = true; //include input files when storing pipelines
 
-        //get available Pline plugins and pipelines
+        //get plugins and pipelines from the Pline server
         $.get('?plugins').done(function(data){
           data = JSON.parse(data);
+          var plugins = [];
           if(data.plugins && $.isArray(data.plugins) && data.plugins.length){
             $.each(data.plugins, function(i, jsonpath){ //import plugin
               Pline.addPlugin('?plugin='+jsonpath, jsonpath);
             });
-            model.messages.push('👈 Pline plugins ready');
+
+            plugins = Object.keys(Pline.plugins);
+            if(plugins.length == 1){ //auto-draw the single plugin
+              drawInterface.call(Pline.plugins[plugins[0]]);
+              model.messages.push('✅ Plugin imported');
+            } else model.messages.push('👈 Plugins ready');
           } else {
             model.messages.push('⚠️ No plugins found');
           }
-          //get preinstalled pipelines
+
+          //got some pipelines
           if(data.pipelines && $.isArray(data.pipelines) && data.pipelines.length){
             $.each(data.pipelines, function(i, jsonpath){
-              $.get('?plugin='+jsonpath).done(function(data){
-                //add pipeline source (for input file downloads)
-                data.URL = '?plugin='+jsonpath.substring(0, jsonpath.lastIndexOf('/')+1);
-                model.pipelines.push(data); //add to the pipelines menu
+              $.get('?plugin='+jsonpath).done(function(json){
+                //add pipeline source url (for input file downloads)
+                json.URL = '?plugin='+jsonpath.substring(0, jsonpath.lastIndexOf('/')+1);
+                model.pipelines.push(json); //add to the pipelines menu
               });
             });
-            setTimeout( function(){ //draw the first imported pipeline
-              Pline.openPipeline(model.pipelines[0]);
-              if(!Pline.config.errors().length){
-                $('.pl-button.plmenu').show();
-                $('.container').removeClass('away');
-                model.messages.push('👈 Pipeline imported');
-              } else {
-                model.messages.push('⚠️ Pipeline import failed');
-              }
+
+            setTimeout( function(){
+              $('.pl-button.pmenu').show();
+              //single-pipeline package: auto-draw the interface
+              var plugins = Object.keys(Pline.plugins);
+              var pl = model.pipelines;
+              if(pl.length == 1 && plugins.length <= pl[0].pipeline.length){
+                Pline.openPipeline(pl[0]);
+                if(!Pline.config.errors().length){
+                  model.messages.push('✅ Pipeline imported');
+                  $('.container').removeClass('away');
+                } else {
+                  model.messages.push('⚠️ Pipeline import failed');
+                }
+              } else model.messages.push('👈 Pipelines ready');
             }, 2300);
           }
         });

@@ -51,15 +51,9 @@ except ImportError:  #python 2
     from SocketServer import ThreadingMixIn
 
 #Define globals
-version = 200128
 serverpath = os.path.realpath(__file__)
 plinedir = os.path.dirname(serverpath)
 os.chdir(plinedir)
-#Pline OSX bundle
-osxbundle = False
-if(os.path.isfile('AppSettings.plist')):
-    osxbundle = True
-    plinedir = os.path.dirname(plinedir)
 
 #configuration file parser
 def getconf(opt='', vtype=''):
@@ -98,10 +92,8 @@ dataids = getconf('dataids', 'bool')
 dataexpire = getconf('dataexpire', 'int')
 expiremsg = getconf('expiremsg', 'bool')
 
-datestamp = '' #last data cleanup date
-job_queue = None #queue of running programs
-
-sys.stdout.flush() #print to console before logging
+datestamp = '' #last datafiles cleanup date
+job_queue = None #queue for running programs
 
 #set up logging
 class TimedFileHandler(logging.handlers.TimedRotatingFileHandler):
@@ -124,21 +116,6 @@ def start_logging():
 
 def info(msg):
     logging.info(msg)
-
-#create linux desktop shortcut
-if(sys.platform.startswith('linux') and linuxdesktop):
-    try:
-        shortcut = os.path.join(plinedir, 'pline.desktop')
-        conf = configparser.ConfigParser()
-        conf.optionxform = str
-        conf.read(shortcut)
-        if(conf.get('Desktop Entry', 'Exec') is not serverpath):
-            conf.set('Desktop Entry', 'Exec', serverpath)
-            conf.set('Desktop Entry', 'Icon', os.path.join(plinedir,'pline_logo.png'))
-            with open(shortcut,'wb') as fhandle: conf.write(fhandle)
-            shutil.copy(shortcut, os.path.expanduser('~/Desktop'))
-    except (configparser.Error, shutil.Error, OSError, IOError) as why:
-        print('Setup error: Could not create Linux desktop shortcut: '+str(why))
 
 ### Utility functions ###
 #check if a filepath is confied to the served directory
@@ -424,7 +401,7 @@ class plineServer(BaseHTTPRequestHandler):
         hostname = self.headers.get('Host') #update
 
         status = { "status": "OK" }
-        confs = ["version", "local", "dataexpire", "cpulimit", "datalimit", "filelimit"]
+        confs = ["local", "dataexpire", "cpulimit", "datalimit", "filelimit"]
         for conf in confs:
             status[conf] = globals()[conf]
         status["datasize"] = getsize(datadir)
@@ -439,10 +416,11 @@ class plineServer(BaseHTTPRequestHandler):
     #send plugins list
     def post_plugins(self, *a):
         os.chdir(plugindir)
-        pathlist1 = glob(os.path.join('*', 'plugin.json'))
-        pathlist2 = glob(os.path.join('pipelines', '*.json'))
+        json_paths1 = glob(os.path.join('*', 'plugin.json'))
+        json_paths2 = glob(os.path.join('pipelines', '*.json'))
+        json_paths3 = glob(os.path.join('pipelines', '*', '*.json'))
         os.chdir(plinedir)
-        self.sendOK( json.dumps({ "plugins": pathlist1, "pipelines": pathlist2 }) )
+        self.sendOK( json.dumps({ "plugins": json_paths1, "pipelines": json_paths2 + json_paths3 }) )
     
     #send status of a program (datadir metadata)
     def post_status(self, jobid):
@@ -712,7 +690,7 @@ class Job(object):
         }
         
         self.job_status = self["status"] = Job.INIT
-        self.lock = threading.Lock()
+        self.lock = threading.Lock() #thread syncing lock
         self.bin = self["program"] #.bin keeps full dirpath
         self.popen = None
         self.postprocess = None
@@ -720,14 +698,18 @@ class Job(object):
         self["updated"] = int(time.time())
         if(not self["infiles"]): del self["infiles"]
         
-        #validate plugin file(s)
+        #check plugin & program files
         plugins = self["plugin"].split('|') #pipes: plugin1|plugin2
-        for plugin in plugins:
+        programs = self.bin.split('|')
+        if(len(plugins) != len(programs)):
+            raise IOError("Plugin/program count mismatch")
+
+        for i, plugin in enumerate(plugins):
             pluginfile = joinp(plugindir, plugin, d=plugindir)
             if(not os.path.isfile(pluginfile)): raise IOError('Invalid plugin file: '+plugin)
+            programs[i] = self.check_exec(plugin, programs[i]) #check binary path
         
-        #add path to program(s)
-        self.bin = '|'.join([self.check_exec(plugin, program) for program in self.bin.split('|')])
+        self.bin = '|'.join(programs)
 
         #windows: replace path separators in params
         if(os.sep != '/'):
@@ -738,24 +720,23 @@ class Job(object):
             self["parameters"] = ' '.join(self.params)
 
         self.update() #update datafile
-        job_queue.enqueue(jobid, self) #add job to the queue
+        job_queue.enqueue(jobid, self) #add itself to the queue
     
     def check_exec(self, plugin, program): #check the program path in the plugin dir
         pdir = os.path.dirname(os.path.join(plugindir, plugin))
-        osdir = { #check path: plugin/[osx|linux|windows|.]/program
+        osdirs = { #check binary location: plugin/[osx|linux|windows|.]/program
             'darwin': 'osx',
             'linux': 'linux',
-            'win': 'windows',
-            '': '' #fallback
+            'win': 'windows'
         }
 
-        def is_exec(fpath):
-            return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-        for osname in osdir:
-            binpath = os.path.join(pdir, osname, program)
-            if is_exec(binpath): return binpath
-        return program #not found inside the plugin folder
+        for osname in osdirs:
+            if(sys.platform.startswith(osname)):
+                fpath = os.path.join(pdir, osdirs[osname], program)
+                if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+                    return fpath #binary in os-specific subdir
+                break
+        return program #use as system command
     
     def __getitem__(self, key):
         try: return self.items[key]
@@ -775,60 +756,24 @@ class Job(object):
         if newstatus is not None:
             self.job_status = self["status"] = newstatus
             if end and newstatus != 0: #bad exit code
-                try:
+                try: #convert code to message
                     self["status"] = self.errormsg[newstatus]
-                except KeyError:
+                except KeyError: #default message
                     self["status"] = "Error. Exit code: "+str(newstatus)
         return self.job_status
     
-    def lock_status(self): self.lock.acquire()
+    def update(self, key="", value=""): #edit metadata and write out
+        if(key and value): self[key] = value
+        Metadata(self["id"]).update(self.items)
     
-    def unlock_status(self): self.lock.release()
-    
-    def terminate(self, shutdown=False):
-        self.lock_status()
-        if self.popen is not None: self.popen.terminate()
-        self.status(Job.TERMINATED, end=True)
-        if shutdown: self["status"] = self.errormsg[-16]
-        self.update()
-        logging.debug("Job "+self["id"]+" terminated.")
-        self.unlock_status()
-    
-    def check_outfiles(self):
-        try: #remove empty stdout/stderr files
-            if(not os.path.getsize(self.fullpath(self["logfile"]))):
-                os.remove(self.fullpath(self["logfile"]))
-                del self["logfile"]
-            if(not os.path.getsize(self.fullpath(self["stdout"]))):
-                os.remove(self.fullpath(self["stdout"]))
-                del self["stdout"]
-        except OSError: pass
-        #verify output filenames
-        outfiles = self["outfiles"].split(',')
-        for i, filename in enumerate(outfiles):
-            if(not os.path.isfile(self.fullpath(filename))):
-                del outfiles[i]
-        if(len(outfiles)):
-            self["outfiles"] = ','.join(outfiles)
-        else:
-            del self["outfiles"]
+    def flush(self): #write metadata to file
+        Metadata(self["id"]).replace(self.items)
         
-
     def done(self):
         return self["status"] not in (Job.INIT, Job.QUEUED, Job.RUNNING)
-    
-    def begin(self):
-        self.status(Job.RUNNING)
-        self.update()
 
     def process(self):
-        self.lock_status()
-        
-        if self.done():
-            self.unlock_status()
-            return
-        
-        self.begin()
+        if self.done(): return
         
         #set limits for system resources
         if(not sys.platform.startswith("win")):
@@ -851,6 +796,8 @@ class Job(object):
         errfile = open(self.fullpath(self["logfile"]), "w")
         #prevent job to inherit all parent filehandlers (buggy on windows)
         closef = False if sys.platform.startswith("win") else True
+        command = []
+        ret = -1
 
         #start the job with a single or multiple (piped) commands
         try:
@@ -869,41 +816,63 @@ class Job(object):
             self.popen = p1
         except OSError as e:
             logging.debug("Job command failed: "+str(e))
-            errfile.write("Server error: "+str(e)+" when executing job: "+command)
-            self.unlock_status()
-            ret = -1
+            errfile.write("Server error: "+str(e)+" when executing job: "+' '.join(command))
         else:
-            self.unlock_status()
+            self.begin()
             ret = self.popen.wait()
         finally:
-            self.lock_status()
-            self.end(ret)
             outfile.close()
             errfile.close()
-            self.unlock_status()
+            self.end(ret)
 
-    def end(self, rc):
+    def begin(self):
+        with self.lock:
+            self.status(Job.RUNNING)
+            self.update()
+
+    def end(self, rc=-1):
         if self.done(): return
-        self["completed"] = int(time.time())
-        self.status(rc, end=True)
-        if(rc == 0): #job completed
-            self.check_outfiles()
-            if(self["nextstep"]):
-                Job(self["nextstep"]) #run the next step
-            elif(self["notify"]): #send notification email
-                del self["notify"]
-                if('firstid' in self.items):
-                    send_job_done(self.items.firstid)
-        self.flush()
+        with self.lock:
+            self["completed"] = int(time.time())
+            self.status(rc, end=True)
+            if(rc == 0): #job completed
+                self.check_outfiles()
+                if(self["nextstep"]):
+                    Job(self["nextstep"]) #queue the next step
+                elif(self["notify"]): #send notification email
+                    del self["notify"]
+                    if('firstid' in self.items):
+                        send_job_done(self.items.firstid)
+            self.flush()
     
-    def update(self, key="", value=""): #edit metadata and write out
-        if(key and value): self[key] = value
-        Metadata(self["id"]).update(self.items)
+    def check_outfiles(self):
+        try: #remove empty stdout/stderr files
+            if(not os.path.getsize(self.fullpath(self["logfile"]))):
+                os.remove(self.fullpath(self["logfile"]))
+                del self["logfile"]
+            if(not os.path.getsize(self.fullpath(self["stdout"]))):
+                os.remove(self.fullpath(self["stdout"]))
+                del self["stdout"]
+        except OSError: pass
+        #verify output filenames
+        outfiles = self["outfiles"].split(',')
+        for i, filename in enumerate(outfiles):
+            if(not os.path.isfile(self.fullpath(filename))):
+                del outfiles[i]
+        if(len(outfiles)):
+            self["outfiles"] = ','.join(outfiles)
+        else:
+            del self["outfiles"]
     
-    def flush(self): #write metadata to file
-        Metadata(self["id"]).replace(self.items)
+    def terminate(self, shutdown=False):
+        with self.lock: #do this in one thread at a time
+            if self.popen is not None: self.popen.terminate()
+            self.status(Job.TERMINATED, end=True)
+            if shutdown: self["status"] = self.errormsg[-16]
+            self.update()
+        logging.debug("Job "+self["id"]+" terminated.")
 
-#class for creating the job queue
+#Class for creating job queues
 class Workqueue(object):
     def __init__(self, numworkers=0, qtimeout=1, qsize=0):
         self.jobs = {}
@@ -915,8 +884,9 @@ class Workqueue(object):
     def _init_workers(self, numworkers):
         if numworkers == 0 :
             numworkers = multiprocessing.cpu_count()
-        tmp = []
         
+        tmp = []
+        #assign threads for running tasks
         for tnum in range(numworkers):
             t = threading.Thread(target=self._consume_queue)
             t.daemon = True
@@ -954,14 +924,15 @@ class Workqueue(object):
     
     def terminate(self, jobid, shutdown=False):
         if jobid in self.jobs:
-            self.get(jobid).terminate(shutdown)
+            self.get(jobid).terminate(shutdown) #remove from queue
             del self.jobs[jobid]
-            self.queue.task_done()
+            self.queue.task_done() #mark as finished
             logging.debug("Workqueue: terminated %s" % jobid)
     
+    #consume tasks from queue in parallel threads
     def _consume_queue(self):
         while self.running:
-            try :
+            try : #remove a job object from queue
                 job = self.queue.get(timeout=self.qtimeout)
             except queue.Empty:
                 continue
@@ -969,14 +940,14 @@ class Workqueue(object):
             jobid = job["id"]
             logging.debug("Workqueue: starting %s" % jobid)
             
-            try:
+            try: #run the job (wait until finishes)
                 job.process()
             except OSError:
                 raise
             
             if jobid in self.jobs:
                 del self.jobs[jobid]
-                self.queue.task_done()
+                self.queue.task_done() #mark the (most recently removed) task as done
                 logging.debug("Workqueue: completed %s (status: %s)" % (jobid, job.status()))
 
 
@@ -1003,7 +974,6 @@ def main():
     global local
     global job_queue
     global openbrowser
-    global osxbundle
     
     parser = argparse.ArgumentParser(description="Backend server for Pline webapp.")
     parser.add_argument("-p", "--port", type=int, metavar="N", help="set server port (default: %s)" % serverport, default=serverport)
@@ -1024,13 +994,13 @@ def main():
     start_logging()
     
     info('Starting server...\n')
-    job_queue = Workqueue(num_workers) #start task queue
+    job_queue = Workqueue(num_workers)
     job_queue.start()
     
     try:
         server = MultiThreadServer(('',serverport), plineServer)
         info("Pline HTTP server started at port %d\n" % serverport)
-        if(not osxbundle): info("Press CRTL+C to stop the server.\n")
+        info("Press CRTL+C to stop the server.\n")
         logging.debug('Serving from: %s' % plinedir)
         logging.debug('Hostname: %s' % socket.getfqdn()) #get server hostname
         
