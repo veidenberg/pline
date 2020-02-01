@@ -245,6 +245,7 @@ span.pl-action.pl-info{
 
 .pl-filedrag{
 	display: inline-block;
+	position: relative;
 	margin: 5px;
 	border: 2px dashed #ccc;
 	color: #aaa;

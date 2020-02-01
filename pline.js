@@ -173,7 +173,7 @@ var Pline = {
 	},
 	
 	//restore a pipeline from JSON
-	openPipeline: function(json){
+	openPipeline: function(json, targetEl){
 		var self = this;
 		self.config.errors.removeAll();
 		if(!json || !json.pipeline){
@@ -196,7 +196,7 @@ var Pline = {
 				self.config.errors.push('Missing plugin: '+step.plugin);
 				break;
 			} else {
-				plugin = self.plugins[step.plugin].draw(); //render plugin interface
+				plugin = self.plugins[step.plugin].draw(targetEl, 'clone'); //render plugin interface
 				setTimeout( function(step){ //fill the inputs
 					var data = {name: json.name, preset: step.inputs, URL: json.URL||false};
 					this.loadPreset(data, 'quiet');
@@ -398,7 +398,7 @@ Pline.plugin = function(json, opt){
 //construcor for creating plugin interface
 Pline.plugin.prototype = {
 	//add plugin interface to the webpage
-	draw: function(targetEl){ //targetEl(optional) = plugin interface container
+	draw: function(targetEl, clone){ //targetEl(optional) = plugin interface container
 		var plugin = this;
 		var UItarget = plugin.UIcontainer = $(targetEl||Pline.settings.UIcontainer);
 		if(!$(UItarget).length){
@@ -477,7 +477,10 @@ Pline.plugin.prototype = {
 			} else { //replace interface with the new plugin
 				Pline.clearPipeline();
 			} 
+		} else if(clone){ //use a plugin duplicate
+			plugin = plugin.clonePlugin();
 		}
+
 		Pline.pipeline.push(plugin.id);
 		
 		//add plugin interface
@@ -630,7 +633,7 @@ Pline.plugin.prototype = {
 	error: function(errtxt, iswarning){
 		if(this.curopt) errtxt = errtxt+' (when parsing option "'+this.curopt+'")';
 		if(!this.ready && !iswarning) this.errors.push(errtxt);
-		console[iswarning?'warn':'error']('%c '+this.title+' %c '+errtxt, 'color:white;background-color:orange;border-radius:3px', '');
+		console[iswarning?'log':'error']('%c '+this.title+' %c '+errtxt, 'color:white;background-color:orange;border-radius:3px', '');
 		return '';
 	},
 	
@@ -1802,18 +1805,16 @@ Pline.plugin.prototype = {
 		var self = this;
 		data = self.json;
 		if(!data) return self.error('input JSON missing');
-		if(typeof(data)=='string'){ //parse JSON or JS object string
-			try{ data = JSON.parse(data); }
-			catch(e1){
-				try{ eval("data = "+data); }
-				catch(e2){
-					e2 += ' @ line '+e2.lineNumber+', column '+e2.columnNumber;
-					self.error('failed to parse plugin file as JSON (ignore if it\'s Javascript object): '+e1, 'warning');
-					return self.error(self.path+': failed to parse plugin file as javascript object (giving up): '+e2);
-				}
+		if(typeof(data) == 'string'){ //parse JSON or object string
+			try {
+				data = Function('return ('+ data +')')();
+			} catch(e) {
+				e += ' @ line '+e.lineNumber+', column '+e.columnNumber;
+				return self.error('failed to parse plugin file as JSON or JS object: '+e, 'show');
 			}
+		} else if(typeof(data) != 'object') {
+			return self.error('plugin file in wrong format: '+typeof(data)+' (JSON or Object expected)', 'show');
 		}
-		else if(typeof(data)!='object') return self.error('plugin file in wrong format: '+typeof(data)+' (JSON or Object expected)');
 		
 		self.json = data; //parsed JSON
 		if(!data.options) return self.error('Options list missing from the JSON');

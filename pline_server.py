@@ -730,12 +730,22 @@ class Job(object):
             'win': 'windows'
         }
 
-        for osname in osdirs:
+        cmd = program.split(' ')[0]
+        def cmdpath(fpath): #restore original command
+            cmd[0] = fpath
+            return ' '.join(cmd)
+
+        for osname in osdirs: #check os-specific subdir
             if(sys.platform.startswith(osname)):
-                fpath = os.path.join(pdir, osdirs[osname], program)
+                fpath = os.path.join(pdir, osdirs[osname], cmd[0])
                 if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-                    return fpath #binary in os-specific subdir
+                    return cmdpath(fpath) #binary in os-specific subdir
                 break
+
+        fpath = os.path.join(pdir, cmd[0])
+        if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+            return cmdpath(fpath) #binary in plugin rootdir
+
         return program #use as system command
     
     def __getitem__(self, key):
