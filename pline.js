@@ -59,7 +59,7 @@ var Pline = {
 	//parse & register new plugin
 	addPlugin: function(data, pluginpath){ //data = Pline.plugin(obj) | JSON(obj/str) | JSON URL(str)
 		if(!data){
-			console.log('Failed to add a Pline plugin: input missing (JSON or URL expected)!');
+			console.log('Failed to import a Pline plugin: input missing (JSON or URL expected)!');
 			return;
 		}
 		var json, url, plugin;
@@ -70,7 +70,7 @@ var Pline = {
 			if(data instanceof Pline.plugin) plugin = data;
 			else json = data;
 		} else {
-			console.log('Failed to add a Pline plugin: wrong input type (JSON or URL expected)!');
+			console.log('Failed to import a Pline plugin: wrong input type (JSON or URL expected)!');
 			return;
 		}
 		
@@ -93,8 +93,9 @@ var Pline = {
 			return;
 		}
 		
-		var ok = plugin.initPlugin();
-		if(ok){
+		var status = plugin.initPlugin();
+		if(status){
+			if(status instanceof Pline.plugin) return status;
 			if(plugin.debug) console.groupCollapsed(plugin.title+' plugin parser log');
 			plugin.parseOptions();
 			plugin.ready = true;
@@ -104,8 +105,7 @@ var Pline = {
 			plugin.log('= Plugin parsed =', {title:true});
 			Pline.plugins[plugin.id] = plugin;
 		} else {
-			plugin.error('Input JSON parsing failed.');
-			console.log('Plugin JSON parsing failed. Datamodel dump: %o', plugin);
+			console.log('Plugin import failed. Datamodel dump: %o', plugin);
 		}
 		
 		plugin.registerPlugin(); //hook function
@@ -1810,7 +1810,7 @@ Pline.plugin.prototype = {
 				data = Function('return ('+ data +')')();
 			} catch(e) {
 				e += ' @ line '+e.lineNumber+', column '+e.columnNumber;
-				return self.error('failed to parse plugin file as JSON or JS object: '+e, 'show');
+				return self.error('Failed to parse plugin file: '+e, 'show');
 			}
 		} else if(typeof(data) != 'object') {
 			return self.error('plugin file in wrong format: '+typeof(data)+' (JSON or Object expected)', 'show');
@@ -1835,7 +1835,8 @@ Pline.plugin.prototype = {
 		});
 		self.title = data.name || data.program;
 		if(Pline.plugins[self.title] && !self.step){
-			self.error('Duplicate plugin: '+self.title, 'warning'); //will overwrite Pline.plugins[name]
+			self.error('Plugin '+self.title+' already imported', 'warning');
+			return Pline.plugins[self.title];
 		}
 		if(!self.id) self.id = self.title.replace(/\W/g,'_');
 		if(!self.path) self.path = self.program;

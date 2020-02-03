@@ -691,7 +691,7 @@ class Job(object):
         
         self.job_status = self["status"] = Job.INIT
         self.lock = threading.Lock() #thread syncing lock
-        self.bin = self["program"] #.bin keeps full dirpath
+        self.bin = self["program"] #keeps full dirpath
         self.popen = None
         self.postprocess = None
         
@@ -729,8 +729,7 @@ class Job(object):
             'linux': 'linux',
             'win': 'windows'
         }
-
-        cmd = program.split(' ')[0]
+        cmd = program.split(' ')
         def cmdpath(fpath): #restore original command
             cmd[0] = fpath
             return ' '.join(cmd)
@@ -739,14 +738,14 @@ class Job(object):
             if(sys.platform.startswith(osname)):
                 fpath = os.path.join(pdir, osdirs[osname], cmd[0])
                 if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-                    return cmdpath(fpath) #binary in os-specific subdir
+                    return cmdpath(fpath)
                 break
 
-        fpath = os.path.join(pdir, cmd[0])
+        fpath = os.path.join(pdir, cmd[0]) #check plugin root
         if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-            return cmdpath(fpath) #binary in plugin rootdir
+            return cmdpath(fpath)
 
-        return program #use as system command
+        return program #fallback: use system command
     
     def __getitem__(self, key):
         try: return self.items[key]
