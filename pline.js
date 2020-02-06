@@ -310,6 +310,17 @@ var Pline = {
 		menu.removeClass('pl-opaque');
 		setTimeout(function(){ menu.remove(); }, 200);
 	},
+
+	//search an array of objects with a key/val needle
+	indexOfObj: function(objarr, key, val){
+		if(!Array.isArray(objarr) || typeof(key) != 'string') return -1;
+		for(var i = 0; i < objarr.length; i++){
+			var oval = objarr[i][key];
+			if(typeof(oval) == 'function' && typeof(val) != 'function') oval = oval();
+			if(oval === val) return i;
+		}
+		return -1;
+	},
 	
 	//replace Pline or plugin functions/variables with custom extensions
 	extend: function(extensions){ //extensions = {varName:func/obj/val}
@@ -692,17 +703,6 @@ Pline.plugin.prototype = {
 		console.log.apply(null, logargs); //print out
 	},
 	
-	//search an array of objects with a key/val needle
-	indexOfObj: function(objarr, key, val){
-		if(!Array.isArray(objarr) || typeof(key) != 'string') return -1;
-		for(var i = 0; i < objarr.length; i++){
-			var oval = objarr[i][key];
-			if(typeof(oval) == 'function' && typeof(val) != 'function') oval = oval();
-			if(oval === val) return i;
-		}
-		return -1;
-	},
-	
 	//find option-bound observables
 	getOption: function(optname){
 		if(optname in this.options) return this.options[optname];
@@ -934,10 +934,10 @@ Pline.plugin.prototype = {
 			if(!data.value.includes(data.default)) self.error('The default checkbox state ('+data.default+') not in the list of its values: '+data.value, 'w');
 			//add the proxy checkbox input
 			var cbname = trackname+'_checkbox';
-			if(!~self.indexOfObj(parentArr, 'name', cbname)){ //add the checkbox element to json
+			if(!~Pline.indexOfObj(parentArr, 'name', cbname)){ //add the checkbox element to json
 				var cbdata = Object.assign({}, data, {name:cbname, default:data.default===data.value[0], proxyInput:true}); //use current data
 				delete cbdata.value; delete cbdata.merge;
-				var opti = self.indexOfObj(parentArr, 'name', data.name)+1;
+				var opti = Pline.indexOfObj(parentArr, 'name', data.name)+1;
 				parentArr.splice(opti, 0, cbdata); //place after the current option (parsed by next parseOption() loop)
 				self.parseOption(cbdata, parentArr); //make observable
 			}
@@ -1104,7 +1104,7 @@ Pline.plugin.prototype = {
 				selection.push({title: 'Local file ⟶', value: '_local_', desc: 'Use a file from your computer.'});
 				seldata.selection = selection;
 				//add the selection data to the plugin json
-				var optind = self.indexOfObj(parentArr, 'name', data.name);
+				var optind = Pline.indexOfObj(parentArr, 'name', data.name);
 				parentArr.splice(optind, 0, seldata); //place the selection element in front of the fileinput
 				self.parseOption(seldata, parentArr); //parse & register the observable
 				
@@ -1233,7 +1233,7 @@ Pline.plugin.prototype = {
 				var trackvar = self.options[data.name];
 				var selectedval = trackvar();
 				//self.log('selection "'+trackname+'" was changed to "'+selectedval+'"');
-				var selectedind = self.indexOfObj(self.options[selarr], 'v', selectedval);
+				var selectedind = Pline.indexOfObj(self.options[selarr], 'v', selectedval);
 				if(selectedind < 0) return selectedind; //selection not ready
 				var selecteditem = self.options[selarr][selectedind];
 				trackvar.desc(selecteditem.d); //set item description
@@ -1297,7 +1297,7 @@ Pline.plugin.prototype = {
 			if(!(optname in self.options)){ //option not in json (not registered in the previous parsing round)
 				self.log('Adding '+optname+' as hidden option');
 				var odata = {hidden: optname, name: optname, value: optval, addedOption:true};
-				parentArr.splice(self.indexOfObj(parentArr, 'name', trackname)+1, 0, odata); //place it after the current option
+				parentArr.splice(Pline.indexOfObj(parentArr, 'name', trackname)+1, 0, odata); //place it after the current option
 				self.parseOption(odata, parentArr, optval); //parse & register (optval = initital val. || computed obs.)
 			} else if(typeof(optval)=='function'){ //replace plain => computed observable
 				self.options[optname] = optval;

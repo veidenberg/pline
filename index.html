@@ -411,7 +411,7 @@
           .done(function(data){ //new status data from the server
             data = JSON.parse(data);
             $.each(data, function(id, jobdata){
-              var jobnr = Pline.plugin.prototype.indexOfObj(self.jobs(), 'id', id);
+              var jobnr = Pline.indexOfObj(self.jobs(), 'id', id);
               if(jobnr == -1) return;
               self.jobs()[jobnr].data(jobdata); //update job status
             });
