@@ -29,7 +29,7 @@ var Pline = {
 	plugins: {}, //plugin datamodels container
 	pipeline: ko.observableArray(), //list of plugin IDS currently in the pipeline
 	submitted: ko.observable(false), //submit button pressed
-	sending: false, //sending input data to server
+	sending: ko.observable(false), //sending input data to server
 	//global Pline settings
 	settings: {
 	  sendmail: false, //enable email notifications (false|true|'pipelines'=only for pipelines)
@@ -355,6 +355,9 @@ Pline.sBtn = ko.pureComputed(function(){
 	var pl = this.pipeline();
 	if(!pl.length){ //empty interface
 		return { text: '', title: '' };
+	}
+	if(Pline.sending()){
+		return { text: 'Sending...', title: 'Submitting the task' };
 	}
 	if(pl.length == 1){ //single plugin
 		var plugin = this.plugins[pl[0]];
@@ -2037,7 +2040,7 @@ Pline.plugin.prototype = {
 
 	//submit a background job to the server (plugin/plugin pipeline)
 	sendJob: function(){
-		if(Pline.sending) return;
+		if(Pline.sending()) return;
 		var self = this;
 		
 		var payload = self.prepareJob();
@@ -2047,7 +2050,7 @@ Pline.plugin.prototype = {
 			return false;
 		}
 		
-		Pline.sending = true;
+		Pline.sending(true);
 		var formdata = new FormData();
 		if(typeof(Pline.settings.sendData)=='object') Object.assign(payload, Pline.settings.sendData);
 		payload.action = 'run';
@@ -2099,11 +2102,11 @@ Pline.plugin.prototype = {
 	//sendJob() follow-up
 	resetPlugins: function(){
 		var self = this;
+		Pline.submitted(false);
+		Pline.sending(false);
 		if(Pline.settings.cleanup){ //remove interface
 			Pline.clearPipeline('remove');
 		}
-		Pline.sending = false;
-		Pline.submitted(false);
 	}
 };//Pline.plugin.prototype
 

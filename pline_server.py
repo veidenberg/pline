@@ -189,7 +189,7 @@ def cleanup():
         try:
             for filename in os.listdir(tempdir): #remove temp. download files
                 filepath = os.path.join(tempdir, filename)
-                if os.isfile(filename): os.remove(filename)
+                if os.path.isfile(filename): os.remove(filename)
             if dataexpire or osize: #remove overflow/expired task files
                 for dirname in os.listdir(datadir):
                     dirpath = os.path.join(datadir, dirname)
@@ -223,7 +223,7 @@ def create_job_dir(name='analysis', d=datadir):
         while(os.path.isdir(dirpath)): #unique dirname check
             dirpath = inputpath + str(i)
             i += 1
-        os.mkdir(dirpath)
+    os.mkdir(dirpath)
     os.chmod(dirpath, 0o775)
     
     md = Metadata.create(dirpath)
@@ -336,13 +336,15 @@ class plineServer(BaseHTTPRequestHandler):
                 (path, filename) = splitpath(params['data'])
                 if not filename: #(job files) direcotry requested: send as a zip archive
                     jobdir = os.path.join(rootdir, path)
-                    basedir = path.split('/')[0]
+                    jobroot = os.path.dirname(jobdir)
+                    ziproot = os.path.basename(jobdir)
+                    zipfile = os.path.join(tempdir, ziproot)
                     if os.path.isdir(jobdir):
-                        filename = os.path.basename( shutil.make_archive( os.path.join(tempdir, basedir), 'zip', rootdir, basedir ))
+                        filename = os.path.basename( shutil.make_archive(zipfile, 'zip', jobroot, ziproot) )
                         rootdir = tempdir
                         path = ''
                     else:
-                        raise IOError('Datadir not found: '+basedir)
+                        raise IOError('Datadir not found: '+params['data'])
             elif 'plugin' in params and params['plugin']: #from the plugins dir
                 rootdir = plugindir
                 (path, filename) = splitpath(params['plugin'])
@@ -796,10 +798,10 @@ class Job(object):
         #set limits for system resources (for the server request thread with Popen jobs)
         if(not sys.platform.startswith("win")):
             try:
-                #limit running time (h): setrlimit(type, (softlimit, hardlimit))
-                if(timelimit): resource.setrlimit(resource.RLIMIT_CPU, (timelimit*3600, timelimit*3600))
-                #limit output file size (MB)
-                if(filelimit): resource.setrlimit(resource.RLIMIT_FSIZE, (filelimit*1000, filelimit*1000)) 
+                if(timelimit): #limit running time (h=>sec); (softlimit, hardlimit)
+                    resource.setrlimit(resource.RLIMIT_CPU, (timelimit*3600, timelimit*3600))
+                if(filelimit): #limit output file size (MB=>B)
+                    resource.setrlimit(resource.RLIMIT_FSIZE, (filelimit*(10**6), filelimit*(10**6))) 
                 #limit nr. of files created by the process
                 resource.setrlimit(resource.RLIMIT_NOFILE, (1000, 1000))
             except (ValueError, resource.error) as e:
@@ -1040,7 +1042,7 @@ def main():
         logging.error(e)
         return -1
     except KeyboardInterrupt:
-        info("\nShutting down server...")
+        info("Shutting down server...")
         server.socket.close()
     except Exception as e:
         logging.exception("Server runtime error: %s" % e)
