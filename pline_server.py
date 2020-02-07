@@ -78,21 +78,20 @@ plugindir = os.path.join(plinedir, (getconf('plugindir') or 'plugins'))
 if not os.path.exists(plugindir): os.makedirs(plugindir, 0o775)
 serverport = getconf('serverport', 'int') or 8000
 num_workers = getconf('workerthreads', 'int') or multiprocessing.cpu_count()
-cpulimit = getconf('cpulimit', 'int')
+timelimit = getconf('timelimit', 'int')
 datalimit = getconf('datalimit', 'int')
 filelimit = getconf('filelimit', 'int')
-logtofile = getconf('logfile','bool')
+logtofile = getconf('logtofile','bool')
 debug = getconf('debug','bool')
 local = getconf('local','bool')
 gmail = getconf('gmail')
 openbrowser = getconf('openbrowser', 'bool')
-linuxdesktop = getconf('linuxdesktop', 'bool')
 hostname = getconf('hostname') or ''
 dataids = getconf('dataids', 'bool')
 dataexpire = getconf('dataexpire', 'int')
 expiremsg = getconf('expiremsg', 'bool')
 
-datestamp = '' #last datafiles cleanup date
+prev_cleanup = '' #last datafiles cleanup date
 job_queue = None #queue for running programs
 
 #set up logging
@@ -177,25 +176,31 @@ def send_job_done(jobid):
 
 #remove obsolete data files
 def cleanup():
-    global datestamp #last cleanup date
+    global prev_cleanup #previous cleanup date
+    
+    def oversized(): #check datadir size
+        if datalimit and getsize(datadir) > datalimit*1000:
+            return True
+        return False
+    osize = oversized()
 
-    if not dataexpire: return
     today = time.strftime("%d%m%y")
-    if datestamp is not today: #max. 1 cleanup/day
+    if osize or prev_cleanup is not today: #throttle: 1 cleanup/day
         try:
-            for filename in os.listdir(tempdir): #remove temporary downloads
+            for filename in os.listdir(tempdir): #remove temp. download files
                 filepath = os.path.join(tempdir, filename)
                 if os.isfile(filename): os.remove(filename)
-            if dataexpire: #remove expired datadirs
+            if dataexpire or osize: #remove overflow/expired task files
                 for dirname in os.listdir(datadir):
                     dirpath = os.path.join(datadir, dirname)
                     metafile = os.path.join(dirpath, Metadata.FILE)
                     if(not os.path.isdir(dirpath) or not os.path.isfile(metafile)): continue
                     md = Metadata(metafile)
-                    if(md['keepData']): continue #keep flagged data dirs (override dataexpire)
+                    if(md['keepData']): continue #keep flagged data dirs
                     edittime = os.path.getmtime(metafile)
                     dirage = (time.time()-edittime)//86400 #file age in days
-                    if(dirage > dataexpire): #remove expired data dir
+                    if(dirage > dataexpire or oversized()): #remove obsolete datadir
+                        job_queue.terminate(dirname) #might include a queued/running task
                         dircount = len(sum([trio[1] for trio in os.walk(dirpath)],[])) #nr of subdirs
                         shutil.rmtree(apath(dirpath, datadir))
                         info('Cleanup: removed data dir %s (%s analyses from %s days ago)' % (dirname, dircount, int(dirage)))
@@ -203,15 +208,15 @@ def cleanup():
                         msg = 'The result files from your program run is about to exire in 24h.\r\n'
                         msg += 'You can download the files before the expiry date from: %s/%s' % (hostname, dirname)
                         sendmail('Data expiry reminder', msg, md['email'])
-            datestamp = today
         except (OSError, IOError) as why:
             logging.error('Data cleanup failed: '+str(why))
+        prev_cleanup = today
 
 #init dir for new program run
-def create_job_dir(name='analysis', d=datadir, metadata={}):
+def create_job_dir(name='analysis', d=datadir):
     dirpath = os.path.join(d, name)
     if(d == datadir and dataids): #use randomized root dirname
-            dirpath = tempfile.mkdtemp(prefix='', dir=d)
+            dirpath = os.path.join(tempfile.mkdtemp(prefix='', dir=d), name)
     else:
         i = 2
         inputpath = dirpath
@@ -222,10 +227,9 @@ def create_job_dir(name='analysis', d=datadir, metadata={}):
     os.chmod(dirpath, 0o775)
     
     md = Metadata.create(dirpath)
-    if(metadata): md.update(metadata)
     return dirpath
 
-#get total filesize of a dirpath
+#get filesize of a file/dirpath
 def getsize(start_path = datadir): 
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):
@@ -401,7 +405,7 @@ class plineServer(BaseHTTPRequestHandler):
         hostname = self.headers.get('Host') #update
 
         status = { "status": "OK" }
-        confs = ["local", "dataexpire", "cpulimit", "datalimit", "filelimit"]
+        confs = ["local", "dataexpire", "timelimit", "filelimit", "datalimit"]
         for conf in confs:
             status[conf] = globals()[conf]
         status["datasize"] = getsize(datadir)
@@ -447,11 +451,16 @@ class plineServer(BaseHTTPRequestHandler):
         firstid = ''
         notify = False
 
+        #check datadir: remove expired/large files
+        if datalimit or dataexpire:
+            cleanup()
+
         #start new background job/pipeline
         pipeline = json.loads(form.getvalue('pipeline','[]'))
         laststep = len(pipeline)
         logging.debug("Submitting job '%s' with %i step(s)" % (jobname, laststep))
-        for i, data in enumerate(pipeline): #prepare pipeline files (i=1...len)
+        #prepare pipeline files
+        for i, data in enumerate(pipeline):
             if('name' not in data or 'program' not in data):
                 raise AttributeError("'name' or 'progam' missing from the submitted job data!")
             jobname = data['name'].replace(' ', '_')
@@ -685,7 +694,7 @@ class Job(object):
             -1  : "See log file",
             -11 : "Segmentation fault",
             -15 : "Terminated by user",
-            -16 : "Terminated because of server restart",
+            -16 : "Terminated by server",
             127 : "Executable not found"
         }
         
@@ -784,15 +793,18 @@ class Job(object):
     def process(self):
         if self.done(): return
         
-        #set limits for system resources
+        #set limits for system resources (for the server request thread with Popen jobs)
         if(not sys.platform.startswith("win")):
-            try: #setrlimit(type, (sortlimit, hardlimit)); process = server request thread with Popen children 
-                if(cpulimit): resource.setrlimit(resource.RLIMIT_CPU, (cpulimit*3600, cpulimit*3600)) #limit running time
-                if(filelimit): resource.setrlimit(resource.RLIMIT_FSIZE, (filelimit, filelimit)) #limit output file size
-                resource.setrlimit(resource.RLIMIT_NOFILE, (1000, 1000)) #limit nr. of files created by the process
+            try:
+                #limit running time (h): setrlimit(type, (softlimit, hardlimit))
+                if(timelimit): resource.setrlimit(resource.RLIMIT_CPU, (timelimit*3600, timelimit*3600))
+                #limit output file size (MB)
+                if(filelimit): resource.setrlimit(resource.RLIMIT_FSIZE, (filelimit*1000, filelimit*1000)) 
+                #limit nr. of files created by the process
+                resource.setrlimit(resource.RLIMIT_NOFILE, (1000, 1000))
             except (ValueError, resource.error) as e:
                 logging.debug("Failed to limit job resources: "+str(e))
-            os.nice(5) #lower process priority
+            os.nice(5) #decrease the process priority
         
         #separate piped commands & params
         programs = self.bin.split('|')
@@ -910,7 +922,10 @@ class Workqueue(object):
     
     def stop(self):
         self.running = False
-        for jobid in self.jobs.keys():
+        jobs = self.jobs.keys()
+        if(len(jobs)):
+            info("Warning: %s jobs in the queue were cancelled." % len(jobs))
+        for jobid in jobs:
             self.terminate(jobid, shutdown=True)
         self.queue.join()
         for t in self.workthreads:
@@ -932,11 +947,15 @@ class Workqueue(object):
             return None
     
     def terminate(self, jobid, shutdown=False):
-        if jobid in self.jobs:
+        if jobid in self.jobs: #queued job
             self.get(jobid).terminate(shutdown) #remove from queue
             del self.jobs[jobid]
             self.queue.task_done() #mark as finished
             logging.debug("Workqueue: terminated %s" % jobid)
+        else: #check the next pipeline step
+            md = Metadata(jobid)
+            if md['nextstep']:
+                self.terminate(md['nextstep'])
     
     #consume tasks from queue in parallel threads
     def _consume_queue(self):
@@ -1024,10 +1043,8 @@ def main():
         info("\nShutting down server...")
         server.socket.close()
     except Exception as e:
-        logging.exception("Runtime error: %s" % e)
-    
-    if(len(job_queue.jobs)):
-        info("Warning: %s jobs in the queue were cancelled." % len(job_queue.jobs))
+        logging.exception("Server runtime error: %s" % e)
+
     job_queue.stop()
     return 0
 
