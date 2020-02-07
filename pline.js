@@ -182,6 +182,7 @@ var Pline = {
 			console.log(json);
 			return;
 		}
+		if(targetEl) Pline.settings.UIcontainer = targetEl;
 		Pline.clearPipeline();
 		self.config.imported({name: json.name||'', desc: json.desc||''});
 		//restore the pipeline steps from json
