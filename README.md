@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="570" alt="Pline header" src="https://user-images.githubusercontent.com/1215700/74085678-457a4180-4a84-11ea-84ac-be8dd2150465.png">
+</p>
+
 # Pline
 
 [Documentation ⇢](http://wasabiapp.org/pline/)  
