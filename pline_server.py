@@ -986,7 +986,7 @@ def main():
     global openbrowser
     
     parser = argparse.ArgumentParser(description="Backend server for Pline webapp.")
-    parser.add_argument("-p", "--port", type=int, metavar="N", help="set server port (default: %s)" % serverport, default=serverport)
+    parser.add_argument("-p", "--port", type=int, metavar="N", help="set the server port (default: %s)" % serverport, default=serverport)
     vgroup = parser.add_mutually_exclusive_group()
     vgroup.add_argument("-v", "--verbose", action='store_true', help="show server traffic %s" % ("(default)" if debug else ""), default=debug)
     vgroup.add_argument("-q", "--quiet", action='store_true', help="minimal feedback %s" % ("(default)" if not debug else ""))
@@ -994,13 +994,15 @@ def main():
     fgroup.add_argument("-f", "--filelog", action='store_true', help="print feedback to file %s" % ("(default)" if logtofile else ""), default=logtofile)
     fgroup.add_argument("-c", "--console", action='store_true', help="print feedback to console %s" % ("(default)" if not logtofile else ""))
     lgroup = parser.add_mutually_exclusive_group()
-    lgroup.add_argument("-l", "--local", action='store_true', help="autolaunch web browser %s" % ("(default)" if local else ""), default=local)
-    lgroup.add_argument("-r", "--remote", action='store_true', help="just start the server %s" % ("(default)" if not local else ""))
+    lgroup.add_argument("-l", "--local", action='store_true', help="start as local server %s" % ("(default)" if local else ""), default=local)
+    lgroup.add_argument("-r", "--remote", action='store_true', help="start as web server %s" % ("(default)" if not local else ""))
+    parser.add_argument("-o", "--open", action='store_true', help="open web browser %s" % ("(default)" if local and openbrowser else ""), default=openbrowser)
     args = parser.parse_args()
-    serverport = args.port
+    if args.port: serverport = args.port
     debug = False if args.quiet else args.verbose
     logtofile = False if args.console else args.filelog
     local = False if args.remote else args.local
+    if args.open: openbrowser = args.open
     start_logging()
     
     info('Starting server...\n')
