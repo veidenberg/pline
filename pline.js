@@ -679,9 +679,11 @@ Pline.plugin.prototype = {
 		if(!msg) return;
 		var btn = $(".pl-submit", this.UIcontainer)[0]||'';
 		if(btn){
-			var origtxt = btn.value;
 			btn.value = msg;
-			setTimeout(function(){ btn.value = origtxt }, 2000);
+			clearTimeout(this.btn_to);
+			this.btn_to = setTimeout(function(){
+				btn.value = Pline.sBtn().text;
+			}, 2000); //clear msg after 2sec.
 		}
 	},
 		
@@ -2064,9 +2066,9 @@ Pline.plugin.prototype = {
 			method: "POST",
 			url: Pline.sendAddress,
 			data: formdata, //send as formData
-			success: function(data, status, xhr){
+			success: function(resp){
 				self.btnText('Job sent!');
-				self.jobSent(data);
+				self.jobSent(resp);
 			},
 			error: function(xhr, status, msg){
 				self.btnText('Sending failed!');
@@ -2076,6 +2078,13 @@ Pline.plugin.prototype = {
 			complete: function(xhr, status){
 				self.resetPlugins();
 				self.afterSubmit(status);
+			},
+			xhr: function(){
+				var xhr = $.ajaxSettings.xhr();
+				xhr.upload.onprogress = function(evt){
+					self.btnText('Sending: '+parseInt(evt.loaded/evt.total*100)+'%');
+				};
+				return xhr;
 			},
 		  contentType: false, //no content-type header
 		  processData: false //no processing on formdata

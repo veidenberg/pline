@@ -216,7 +216,9 @@ def cleanup():
 def create_job_dir(name='analysis', d=datadir):
     dirpath = os.path.join(d, name)
     if(d == datadir and dataids): #use randomized root dirname
-            dirpath = os.path.join(tempfile.mkdtemp(prefix='', dir=d), name)
+        dirpath = tempfile.mkdtemp(prefix='', dir=d)
+        os.chmod(dirpath, 0o775)
+        dirpath = os.path.join(dirpath, name)
     else:
         i = 2
         inputpath = dirpath
@@ -251,13 +253,7 @@ class plineServer(BaseHTTPRequestHandler):
             logging.error('Error: request "'+action+'" => '+str(errno)+': '+msg)
             if(debug and action!='GET'): logging.exception('Error details: ')
         if(msg[0]!='{'): msg = '{"error":"'+msg+'"}' #add json padding
-        if hasattr(self, 'callback'): #send as jsonp
-            msg = self.callback+'('+msg+')'
-            self.command = 'HEAD'
-            self.send_error(errno)
-            self.wfile.write(msg)
-        else:
-            self.send_error(errno, msg)
+        self.send_error(errno, msg)
 
     #send OK response (status 200)
     def sendOK(self, msg='', size=0):
@@ -269,20 +265,10 @@ class plineServer(BaseHTTPRequestHandler):
         else: self.send_header("Content-Type", "text/plain")
         self.end_headers()
         if msg:
-            if hasattr(self, 'callback'): #add jsonp padding
-                if(msg[0]!='{' and msg[0]!='['): msg = '{"data":"'+msg+'"}'
-                msg = self.callback+'('+msg+')'
-            self.wfile.write(msg)
-
-    #HEAD requests
-    def do_HEAD(self):
-        try:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write('URL exists')
-            return  
-        except IOError:
-            self.sendError(404,'File Not Found: %s' % self.path,'HEAD')
+            try:
+                self.wfile.write(msg)
+            except TypeError: #Python3: unicode => bytestr
+                self.wfile.write(msg.encode())
 
     #serve files (GET requests)
     def do_GET(self):
@@ -372,29 +358,23 @@ class plineServer(BaseHTTPRequestHandler):
     
             if 'type' in params and params['type']:
                 ctype = params['type']
-            elif 'callback' in params and params['callback']: #jsonp requested
-                ctype = 'application/json'
-                self.callback = params['callback']
-            elif(filename): #use file extension
+            elif filename: #use file extension
                 ctype = ftype(filename)
-
-            #read the requested file (with confinment check)
-            rmode = 'r' if 'text' in ctype else 'rb'
-            with open(joinp(rootdir, path, filename, d=rootdir), rmode) as f:
-                filecontent = f.read()
-            if 'callback' in params: #add jsonp padding
-                filecontent = filecontent.replace('\n','').replace('\r','').replace('\t','')
-                if(filecontent[0]!='{' and filecontent[0]!='['): filecontent = '{"filedata":"'+filecontent.replace('"','\'')+'"}' #textfile
-                filecontent = params['callback']+"("+filecontent+")"
-            #send data
+            if 'text' in ctype: ctype += '; charset=utf-8'
+            
+            #resolve filepath (with confinment check)
+            fpath = joinp(rootdir, path, filename, d=rootdir)
+            #send headers
             self.send_response(200)
             self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", len(filecontent))
+            self.send_header("Content-Length", os.path.getsize(fpath))
             if('image' in ctype): self.send_header("Cache-Control", "max-age=300000")
-            if(rootdir is not plinedir): #file download
+            if(rootdir is not plinedir): #send as file download
                 self.send_header("Content-Disposition", "attachment; filename="+filename)
             self.end_headers()
-            self.wfile.write(filecontent)
+            #read & send the requested file
+            with open(fpath, 'rb') as f:
+                self.wfile.write( f.read() )
         except IOError as e:
             errmsg = 'File Not Found: %s (%s)' % (filename, e.strerror)
             self.sendError(404, errmsg, 'GET')
@@ -627,11 +607,11 @@ class Metadata(object):
             self.flush()
     
     def flush(self):  #write metadata to file
-        datafile = tempfile.NamedTemporaryFile(suffix=os.path.basename(self.md_file), prefix='', dir=self.jobdir, delete=False)
-        json.dump(self.metadata, datafile, indent=2)
-        datafile.close()
-        os.chmod(datafile.name, 0o664)
-        os.rename(datafile.name, self.md_file)
+        fn = os.path.basename(self.md_file)
+        with tempfile.NamedTemporaryFile(mode='w', suffix=fn, prefix='', dir=self.jobdir, delete=False) as f:
+            json.dump(self.metadata, f, indent=2)
+            os.chmod(f.name, 0o664)
+            os.rename(f.name, self.md_file)
     
     def update_log(self):  #add log output to metadata object
         if not job_queue.get(self["id"]) and self["status"] in (Job.INIT, Job.QUEUED, Job.RUNNING): #broken job
