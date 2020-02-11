@@ -185,6 +185,7 @@ input.pl-faded{
 	height: 16px;
 	margin: 0 3px 5px 5px;
 	vertical-align: -2px;
+	box-shadow: none;
 }
 .pl-form input[type="checkbox"] + span{
 	margin-right: 5px;
