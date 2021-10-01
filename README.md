@@ -5,7 +5,7 @@
 # Pline
 
 [Documentation ⇢](http://wasabiapp.org/pline)  
-[Demo site ⇢](http://wasabiapp.org/pline-demo)
+[Demo site ⇢](http://wasabiapp.org/pline-demo)  
 [Preprint article ⇢](https://doi.org/10.22541/au.159863310.09115756)
 
 **JSON-based web interfaces for command-line programs**
