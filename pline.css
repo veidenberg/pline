@@ -364,10 +364,10 @@ a.pl-button span{ display: inline-block; }
 	color: black;
 	padding: 1px;
 	z-index: 70;
-	white-space: nowrap;
 	opacity: 0;
 	-webkit-transition: opacity .2s ease-out, -webkit-transform .2s ease-out;
-  transition: opacity .2s ease-out, transform .2s ease-out;
+  	transition: opacity .2s ease-out, transform .2s ease-out;
+	max-width: 200px;
 }
 
 .pl-tooltip.pl-opaque{
