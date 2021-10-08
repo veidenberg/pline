@@ -120,6 +120,7 @@ var Pline = {
 			self.config.message('Please type a name for the new config.');
 			return;
 		}
+		var desc = self.config.desc();
 		self.config.edit(false);
 		//store the state of the current pipeline
 		var pipeline = [];
@@ -132,8 +133,7 @@ var Pline = {
 			});
 		});
 		//save JSON to Blob and init its download (filesave dialog)
-		var savedata = {name: name, pipeline: pipeline};
-		if(self.config.desc()) savedata.desc = self.config.desc();
+		var savedata = {name: name, desc: desc, pipeline: pipeline};
 		var blob = new Blob([JSON.stringify(savedata, null, 1)], {type: 'text/json'});
 		var filename = name.replace(/ /g, '_')+'.json';
 		if(navigator.msSaveOrOpenBlob){ //IE
