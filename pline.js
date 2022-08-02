@@ -24,6 +24,22 @@ String.prototype.includesAny = function(){
 	return false;
 }
 
+// Sorts an array of objects "in place". (Meaning that the original array will be modified and nothing gets returned.)                                                                                                                      
+function sortOn (arr, prop) {
+    arr.sort (
+        function (a, b) {
+            if (a[prop] < b[prop]){
+                return -1;
+            } else if (a[prop] > b[prop]){
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+    );
+}
+
+
 //Pline object
 var Pline = {
 	plugins: {}, //plugin datamodels container
@@ -266,6 +282,7 @@ var Pline = {
 	//btn=menu launcher DOM element; items=array[{title:str,click:func}]; arr=menu pointer direction ('top'|'bottom') 
 	makeMenu: function(btn, items, arr){
 		if(!arr) arr = 'top';
+                sortOn(items,'text');
 		if(!Array.isArray(items)){
 			items = [];
 			var plugins = Object.keys(Pline.plugins).sort();
