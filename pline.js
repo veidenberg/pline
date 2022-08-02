@@ -266,7 +266,7 @@ var Pline = {
 	//btn=menu launcher DOM element; items=array[{title:str,click:func}]; arr=menu pointer direction ('top'|'bottom') 
 	makeMenu: function(btn, items, arr){
 		if(!arr) arr = 'top';
-		if(!Array.isArray(items)){
+		// if(!Array.isArray(items)){
 			items = [];
 			var plugins = Object.keys(Pline.plugins).sort();
 			plugins.forEach( function(pname){ //default menu: the plugins list
@@ -278,7 +278,7 @@ var Pline = {
 					click: function(){ plugin.draw(); }
 				});
 			});
-		}
+		// }
 		//build the menu
 		var ul = $('<ul>');
 		items.forEach( function(item){
